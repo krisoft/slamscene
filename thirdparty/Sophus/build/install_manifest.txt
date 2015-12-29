@@ -1,0 +1,8 @@
+/usr/local/include/sophus/rxso3.hpp
+/usr/local/include/sophus/se2.hpp
+/usr/local/include/sophus/se3.hpp
+/usr/local/include/sophus/sim3.hpp
+/usr/local/include/sophus/so2.hpp
+/usr/local/include/sophus/so3.hpp
+/usr/local/include/sophus/sophus.hpp
+/usr/local/include/sophus/tests.hpp

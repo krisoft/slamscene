@@ -77,9 +77,6 @@ int main( int argc, char** argv )
 	Sophus::Matrix3f K;
 	K << fx, 0.0, cx, 0.0, fy, cy, 0.0, 0.0, 1.0;
 
-	// HZ defaults to 0. means full processing for each frame.
-	double hz = 0;
-
 	cv::Mat image = cv::Mat(h,w,CV_8U);
 	int runningIDX=0;
 	float fakeTimeStamp = 0;
@@ -104,24 +101,18 @@ int main( int argc, char** argv )
 		assert(image.type() == CV_8U);
 
 		if(runningIDX == 0)
+		{
 			system->randomInit(image.data, fakeTimeStamp, runningIDX);
-		else
-			system->trackFrame(image.data, runningIDX ,hz == 0,fakeTimeStamp);
+		} else {
+			system->trackFrame(
+				image.data,
+				runningIDX,
+				true, // block until mapped
+				fakeTimeStamp
+			);
+		}
 		runningIDX++;
 		fakeTimeStamp+=0.03;
-
-		if(fullResetRequested)
-		{
-
-			printf("FULL RESET!\n");
-			delete system;
-
-			system = new SlamSystem(w, h, K, doSlam);
-			system->setVisualization(outputWrapper);
-
-			fullResetRequested = false;
-			runningIDX = 0;
-		}
 
 		SE3 pose = system->getCurrentPoseEstimate();
 		std::cout << "pose:" << std::endl << pose.matrix() << std::endl;
@@ -134,67 +125,5 @@ int main( int argc, char** argv )
 
 
 	delete system;
-	// delete outputWrapper;
 	return 0;
-
-	/*// get camera calibration in form of an undistorter object.
-	// if no undistortion is required, the undistorter will just pass images through.
-	std::string calibFile;
-	Undistorter* undistorter = 0;
-	undistorter = Undistorter::getUndistorterForFile(FLAGS_calib.c_str());
-
-	if(undistorter == 0)
-	{
-		printf("need camera calibration file! (set using _calib:=FILE)\n");
-		exit(0);
-	}
-
-	
-
-
-
-	
-	H5::DataSet frames_dataset = file.openDataSet( "frames" );
-	H5::DataSpace frames_dataspace = frames_dataset.getSpace();
-
-	CHECK_EQ(frames_dataspace.getSimpleExtentNdims(), 3) << "wrong rank of frames";
-
-	hsize_t frames_dims[3];
-    frames_dataspace.getSimpleExtentDims( frames_dims, NULL);
-
-    int frame_count = frames_dims[0];
-    CHECK_EQ(frames_dims[1], h_inp) << "frame height inconsistency";
-    CHECK_EQ(frames_dims[2], w_inp) << "frame width inconsistency";
-
-    CHECK_EQ(frames_dataset.getTypeClass(), H5T_INTEGER ) << "type inconsistency, wrong class";
-    CHECK_EQ(frames_dataset.getIntType().getSize(), 1 ) << "type inconsistency, wrong size";
-
-    H5::Attribute frames_calibration = frames_dataset.openAttribute("calibration");
-    H5::StrType stype = frames_calibration.getStrType();
-    std::string frames_calibration_str;
-    frames_calibration.read(stype, frames_calibration_str);
-
-	hsize_t      offset[3];   // hyperslab offset in the file
-	hsize_t      count[3];    // size of the hyperslab in the file
-	offset[0] = 54;
-	offset[1] = 0;
-	offset[2] = 0;
-	count[0]  = 1;
-	count[1]  = h_inp;
-	count[2]  = w_inp;
-	frames_dataspace.selectHyperslab( H5S_SELECT_SET, count, offset );
-
-	hsize_t     dimsm[2];             
-	dimsm[0] = h_inp;
-	dimsm[1] = w_inp;
-	H5::DataSpace memspace( 2, dimsm );
-
-    cv::Mat image = cv::Mat(h,w,CV_8U);
-    frames_dataset.read( image.data, H5::PredType::NATIVE_UINT8, memspace, frames_dataspace );
-
-    // Create a window for display.
-    cv::imshow( "Display window", image );                   // Show our image inside it.
-
-    cv::waitKey(0);                        
-	*/
 }

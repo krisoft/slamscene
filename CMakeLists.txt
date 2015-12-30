@@ -9,6 +9,7 @@ find_package(g2o REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
+find_package(HDF5 COMPONENTS CXX)
 FIND_PACKAGE(Boost 1.59 COMPONENTS thread system REQUIRED)
 
 set(CMAKE_CXX_FLAGS
@@ -27,6 +28,7 @@ set(lsd_SOURCE_FILES
   ${PROJECT_SOURCE_DIR}/src/util/SophusUtil.cpp
   ${PROJECT_SOURCE_DIR}/src/util/settings.cpp
   ${PROJECT_SOURCE_DIR}/src/util/Undistorter.cpp
+  ${PROJECT_SOURCE_DIR}/src/util/FrameReader.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Sim3Tracker.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Relocalizer.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/SE3Tracker.cpp
@@ -48,11 +50,18 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/thirdparty/Sophus
   ${Boost_INCLUDE_DIR}
   ${GLOG_INCLUDE_DIRS}
+  ${HDF5_INCLUDE_DIRS}
 )
 
 add_library(lsdslam SHARED ${SOURCE_FILES})
-target_link_libraries(lsdslam g2o_core g2o_stuff g2o_solver_csparse g2o_csparse_extension g2o_types_sim3 g2o_types_sba ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries(lsdslam
+  g2o_core g2o_stuff g2o_solver_csparse g2o_csparse_extension g2o_types_sim3 g2o_types_sba
+  ${OpenCV_LIBS}
+  ${Boost_LIBRARIES}
+  ${GLOG_LIBRARIES} 
+  ${HDF5_CXX_LIBRARIES}  ${HDF5_LIBRARIES}
+)
 
 
 add_executable(dataset_slam src/main_on_images.cpp)
-target_link_libraries(dataset_slam lsdslam gflags ${GLOG_LIBRARIES})
+target_link_libraries(dataset_slam lsdslam gflags ${GLOG_LIBRARIES} ${HDF5_CXX_LIBRARIES}  ${HDF5_LIBRARIES})

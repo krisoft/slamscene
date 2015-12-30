@@ -12,5 +12,6 @@ Dependencies:
 - gflags 2.1.2
 - opencv 3.1.0
 - suit-parse 4.4.4
+- hdf5 1.8.16 installed with -c++11 options from homebrew/science/hdf5
 
 Other versions might work too.

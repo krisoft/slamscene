@@ -23,6 +23,8 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <memory>
+
 
 
 namespace lsd_slam
@@ -79,6 +81,8 @@ public:
 	 * configuration file. If the format is not recognized, returns nullptr.
 	 */
 	static Undistorter* getUndistorterForFile(const char* configFilename);
+
+	static std::shared_ptr<Undistorter> getUndistorterFromString(const std::string calibration);
 };
 
 class UndistorterPTAM : public Undistorter
@@ -93,7 +97,7 @@ public:
 	 * crop / full / none
 	 * outputWidth outputHeight
 	 */
-	UndistorterPTAM(const char* configFileName);
+	UndistorterPTAM(const std::string calibration);
 	
 	/**
 	 * Destructor.
@@ -173,7 +177,7 @@ public:
 	 * crop / full / none
 	 * outputWidth outputHeight
 	 */
-	UndistorterOpenCV(const char* configFileName);
+	UndistorterOpenCV(const std::string calibration);
 	
 	/**
 	 * Destructor.

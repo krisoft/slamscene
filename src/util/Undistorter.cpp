@@ -22,6 +22,7 @@
 
 #include <sstream>
 #include <fstream>
+#include <iostream>
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -87,8 +88,36 @@ Undistorter* Undistorter::getUndistorterForFile(const char* configFilename)
 	}
 }
 
+std::shared_ptr<Undistorter> Undistorter::getUndistorterFromString(const std::string calibration)
+{
+	std::stringstream stream(calibration);
+	std::string l1;
+	std::getline(stream,l1);
+	float ic[10];
+	if(std::sscanf(l1.c_str(), "%f %f %f %f %f %f %f %f",
+			&ic[0], &ic[1], &ic[2], &ic[3], &ic[4],
+			&ic[5], &ic[6], &ic[7]) == 8)
+	{
+		printf("found OpenCV camera model, building rectifier.\n");
+		std::shared_ptr<Undistorter> u = std::make_shared<UndistorterOpenCV>(
+			calibration
+		);
+		if(!u->isValid()) return 0;
+		return u;
+	}
+	else
+	{
+		printf("found ATAN camera model, building rectifier.\n");
+		std::shared_ptr<Undistorter> u = std::make_shared<UndistorterPTAM>(
+			calibration
+		);
+		if(!u->isValid()) return 0;
+		return u;
+	}
+}
 
-UndistorterPTAM::UndistorterPTAM(const char* configFileName)
+
+UndistorterPTAM::UndistorterPTAM(const std::string callibration)
 {
 	valid = true;
 
@@ -98,16 +127,16 @@ UndistorterPTAM::UndistorterPTAM(const char* configFileName)
 	
 	
 	// read parameters
-	std::ifstream infile(configFileName);
-	assert(infile.good());
+	std::stringstream stream(callibration);
+	assert(stream.good());
 
 
 	std::string l1,l2,l3,l4;
 
-	std::getline(infile,l1);
-	std::getline(infile,l2);
-	std::getline(infile,l3);
-	std::getline(infile,l4);
+	std::getline(stream,l1);
+	std::getline(stream,l2);
+	std::getline(stream,l3);
+	std::getline(stream,l4);
 
 
 
@@ -122,7 +151,7 @@ UndistorterPTAM::UndistorterPTAM(const char* configFileName)
 	}
 	else
 	{
-		printf("Failed to read camera calibration (invalid format?)\nCalibration file: %s\n", configFileName);
+		printf("Failed to read camera calibration (invalid format?)\n");
 		valid = false;
 	}
 
@@ -446,20 +475,20 @@ bool UndistorterPTAM::isValid() const
 }
 
 
-UndistorterOpenCV::UndistorterOpenCV(const char* configFileName)
+UndistorterOpenCV::UndistorterOpenCV(const std::string calibration)
 {
 	valid = true;
 	
 	// read parameters
-	std::ifstream infile(configFileName);
-	assert(infile.good());
+	std::ifstream stream(calibration);
+	assert(stream.good());
 
 	std::string l1, l2, l3, l4;
 
-	std::getline(infile,l1);
-	std::getline(infile,l2);
-	std::getline(infile,l3);
-	std::getline(infile,l4);
+	std::getline(stream,l1);
+	std::getline(stream,l2);
+	std::getline(stream,l3);
+	std::getline(stream,l4);
 
 	// l1 & l2
 	if(std::sscanf(l1.c_str(), "%f %f %f %f %f %f %f %f",
@@ -475,7 +504,7 @@ UndistorterOpenCV::UndistorterOpenCV(const char* configFileName)
 	}
 	else
 	{
-		printf("Failed to read camera calibration (invalid format?)\nCalibration file: %s\n", configFileName);
+		printf("Failed to read camera calibration (invalid format?)\n");
 		valid = false;
 	}
 

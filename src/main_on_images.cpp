@@ -34,98 +34,13 @@
 #include <algorithm>
 
 #include "util/Undistorter.h"
+#include "util/FrameReader.h"
 
 #include "opencv2/opencv.hpp"
 
-DEFINE_string(calib, "", "Calibration file");
-DEFINE_string(files, "", "Input frames. Path to directory or file list");
+#include "H5Cpp.h"
 
-
-std::string &ltrim(std::string &s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        return s;
-}
-std::string &rtrim(std::string &s) {
-        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-        return s;
-}
-std::string &trim(std::string &s) {
-        return ltrim(rtrim(s));
-}
-int getdir (std::string dir, std::vector<std::string> &files)
-{
-    DIR *dp;
-    struct dirent *dirp;
-    if((dp  = opendir(dir.c_str())) == NULL)
-    {
-        return -1;
-    }
-
-    while ((dirp = readdir(dp)) != NULL) {
-    	std::string name = std::string(dirp->d_name);
-
-    	if(name != "." && name != "..")
-    		files.push_back(name);
-    }
-    closedir(dp);
-
-
-    std::sort(files.begin(), files.end());
-
-    if(dir.at( dir.length() - 1 ) != '/') dir = dir+"/";
-	for(unsigned int i=0;i<files.size();i++)
-	{
-		if(files[i].at(0) != '/')
-			files[i] = dir + files[i];
-	}
-
-    return files.size();
-}
-
-int getFile (std::string source, std::vector<std::string> &files)
-{
-	std::ifstream f(source.c_str());
-
-	if(f.good() && f.is_open())
-	{
-		while(!f.eof())
-		{
-			std::string l;
-			std::getline(f,l);
-
-			l = trim(l);
-
-			if(l == "" || l[0] == '#')
-				continue;
-
-			files.push_back(l);
-		}
-
-		f.close();
-
-		size_t sp = source.find_last_of('/');
-		std::string prefix;
-		if(sp == std::string::npos)
-			prefix = "";
-		else
-			prefix = source.substr(0,sp);
-
-		for(unsigned int i=0;i<files.size();i++)
-		{
-			if(files[i].at(0) != '/')
-				files[i] = prefix + "/" + files[i];
-		}
-
-		return (int)files.size();
-	}
-	else
-	{
-		f.close();
-		return -1;
-	}
-
-}
-
+DEFINE_string(file, "", "HDF5 file containing the frames to process.");
 
 using namespace lsd_slam;
 int main( int argc, char** argv )
@@ -134,17 +49,20 @@ int main( int argc, char** argv )
 	gflags::ParseCommandLineFlags(&argc, &argv, true);
 	google::InitGoogleLogging(argv[0]);
 
-	// get camera calibration in form of an undistorter object.
-	// if no undistortion is required, the undistorter will just pass images through.
-	std::string calibFile;
-	Undistorter* undistorter = 0;
-	undistorter = Undistorter::getUndistorterForFile(FLAGS_calib.c_str());
+	H5::H5File file( FLAGS_file, H5F_ACC_RDWR );
+	FrameReader frame_reader( file );
 
-	if(undistorter == 0)
+	/*cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
+
+	for(unsigned int i=0;i<frame_reader.getCount();i++)
 	{
-		printf("need camera calibration file! (set using _calib:=FILE)\n");
-		exit(0);
-	}
+		std::cout << i << std::endl;
+		cv::Mat image = frame_reader.getFrame( i );
+		cv::imshow( "Display window", image );
+		cv::waitKey(0);                        
+	}*/
+
+	std::shared_ptr<Undistorter> undistorter = frame_reader.getUndistorter();
 
 	int w = undistorter->getOutputWidth();
 	int h = undistorter->getOutputHeight();
@@ -159,6 +77,12 @@ int main( int argc, char** argv )
 	Sophus::Matrix3f K;
 	K << fx, 0.0, cx, 0.0, fy, cy, 0.0, 0.0, 1.0;
 
+	// HZ defaults to 0. means full processing for each frame.
+	double hz = 0;
+
+	cv::Mat image = cv::Mat(h,w,CV_8U);
+	int runningIDX=0;
+	float fakeTimeStamp = 0;
 
 	// make output wrapper. just set to zero if no output is required.
 	Output3DWrapper* outputWrapper = 0;
@@ -167,50 +91,13 @@ int main( int argc, char** argv )
 	// make slam system
 	SlamSystem* system = new SlamSystem(w, h, K, doSlam);
 	system->setVisualization(outputWrapper);
+	
 
-
-
-	// open image files: first try to open as file.
-	std::string source;
-	std::vector<std::string> files;
-
-	if(getdir(FLAGS_files, files) >= 0)
-	{
-		printf("found %d image files in folder %s!\n", (int)files.size(), FLAGS_files.c_str());
-	}
-	else if(getFile(FLAGS_files, files) >= 0)
-	{
-		printf("found %d image files in file %s!\n", (int)files.size(), FLAGS_files.c_str());
-	}
-	else
-	{
-		printf("could not load file list! wrong path / file?\n");
-	}
-
-
-
-	// HZ defaults to 0. means full processing for each frame.
-	double hz = 0;
-
-	cv::Mat image = cv::Mat(h,w,CV_8U);
-	int runningIDX=0;
-	float fakeTimeStamp = 0;
-
-	for(unsigned int i=0;i<files.size();i++)
+	for(unsigned int i=0;i<frame_reader.getCount();i++)
 	{
 		std::cout << i << std::endl;
-		cv::Mat imageDist = cv::imread(files[i], CV_LOAD_IMAGE_GRAYSCALE);
+		cv::Mat imageDist = frame_reader.getFrame( i );
 
-		if(imageDist.rows != h_inp || imageDist.cols != w_inp)
-		{
-			if(imageDist.rows * imageDist.cols == 0)
-				printf("failed to load image %s! skipping.\n", files[i].c_str());
-			else
-				printf("image %s has wrong dimensions - expecting %d x %d, found %d x %d. Skipping.\n",
-						files[i].c_str(),
-						w,h,imageDist.cols, imageDist.rows);
-			continue;
-		}
 		assert(imageDist.type() == CV_8U);
 
 		undistorter->undistort(imageDist, image);
@@ -247,7 +134,67 @@ int main( int argc, char** argv )
 
 
 	delete system;
-	delete undistorter;
 	// delete outputWrapper;
 	return 0;
+
+	/*// get camera calibration in form of an undistorter object.
+	// if no undistortion is required, the undistorter will just pass images through.
+	std::string calibFile;
+	Undistorter* undistorter = 0;
+	undistorter = Undistorter::getUndistorterForFile(FLAGS_calib.c_str());
+
+	if(undistorter == 0)
+	{
+		printf("need camera calibration file! (set using _calib:=FILE)\n");
+		exit(0);
+	}
+
+	
+
+
+
+	
+	H5::DataSet frames_dataset = file.openDataSet( "frames" );
+	H5::DataSpace frames_dataspace = frames_dataset.getSpace();
+
+	CHECK_EQ(frames_dataspace.getSimpleExtentNdims(), 3) << "wrong rank of frames";
+
+	hsize_t frames_dims[3];
+    frames_dataspace.getSimpleExtentDims( frames_dims, NULL);
+
+    int frame_count = frames_dims[0];
+    CHECK_EQ(frames_dims[1], h_inp) << "frame height inconsistency";
+    CHECK_EQ(frames_dims[2], w_inp) << "frame width inconsistency";
+
+    CHECK_EQ(frames_dataset.getTypeClass(), H5T_INTEGER ) << "type inconsistency, wrong class";
+    CHECK_EQ(frames_dataset.getIntType().getSize(), 1 ) << "type inconsistency, wrong size";
+
+    H5::Attribute frames_calibration = frames_dataset.openAttribute("calibration");
+    H5::StrType stype = frames_calibration.getStrType();
+    std::string frames_calibration_str;
+    frames_calibration.read(stype, frames_calibration_str);
+
+	hsize_t      offset[3];   // hyperslab offset in the file
+	hsize_t      count[3];    // size of the hyperslab in the file
+	offset[0] = 54;
+	offset[1] = 0;
+	offset[2] = 0;
+	count[0]  = 1;
+	count[1]  = h_inp;
+	count[2]  = w_inp;
+	frames_dataspace.selectHyperslab( H5S_SELECT_SET, count, offset );
+
+	hsize_t     dimsm[2];             
+	dimsm[0] = h_inp;
+	dimsm[1] = w_inp;
+	H5::DataSpace memspace( 2, dimsm );
+
+    cv::Mat image = cv::Mat(h,w,CV_8U);
+    frames_dataset.read( image.data, H5::PredType::NATIVE_UINT8, memspace, frames_dataspace );
+
+    // Create a window for display.
+    cv::imshow( "Display window", image );                   // Show our image inside it.
+
+    cv::waitKey(0);                        
+	*/
 }

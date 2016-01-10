@@ -18,12 +18,13 @@
 * along with LSD-SLAM. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "LiveSLAMWrapper.h"
-
 #include "glog/logging.h"
 #include "gflags/gflags.h"
 
 #include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
+
+#include "LiveSLAMWrapper.h"
 #include "util/settings.h"
 #include "util/globalFuncs.h"
 #include "SlamSystem.h"
@@ -35,12 +36,14 @@
 
 #include "util/Undistorter.h"
 #include "util/FrameReader.h"
+#include "util/PoseWriter.h"
 
 #include "opencv2/opencv.hpp"
 
 #include "H5Cpp.h"
 
-DEFINE_string(file, "", "HDF5 file containing the frames to process.");
+DEFINE_string(input, "", "HDF5 file containing the frames to process.");
+DEFINE_string(output, "", "HDF5 output file path.");
 
 using namespace lsd_slam;
 int main( int argc, char** argv )
@@ -49,8 +52,21 @@ int main( int argc, char** argv )
 	gflags::ParseCommandLineFlags(&argc, &argv, true);
 	google::InitGoogleLogging(argv[0]);
 
-	H5::H5File file( FLAGS_file, H5F_ACC_RDWR );
+	
+	boost::filesystem::copy_file(FLAGS_input, FLAGS_output, boost::filesystem::copy_option::overwrite_if_exists);
+
+	H5::H5File file( FLAGS_output, H5F_ACC_RDWR );
+
 	FrameReader frame_reader( file );
+	PoseWriter pose_writer( file );
+	
+
+	/*hsize_t      size[2];
+	size[0]   = 4;
+	size[1]   = 10;
+	dataset.extend( size );
+
+	return 0;*/
 
 	/*cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
 
@@ -115,12 +131,13 @@ int main( int argc, char** argv )
 		fakeTimeStamp+=0.03;
 
 		SE3 pose = system->getCurrentPoseEstimate();
+		pose_writer.writePose( i, pose );
 		std::cout << "pose:" << std::endl << pose.matrix() << std::endl;
 
 	}
 
 
-	system->finalize();
+	//system->finalize();
 
 
 

@@ -10,7 +10,7 @@ find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
 find_package(HDF5 COMPONENTS CXX)
-FIND_PACKAGE(Boost 1.59 COMPONENTS thread system REQUIRED)
+FIND_PACKAGE(Boost 1.59 COMPONENTS thread system filesystem REQUIRED)
 
 set(CMAKE_CXX_FLAGS
    "${CMAKE_CXX_FLAGS} -std=c++11"
@@ -29,6 +29,7 @@ set(lsd_SOURCE_FILES
   ${PROJECT_SOURCE_DIR}/src/util/settings.cpp
   ${PROJECT_SOURCE_DIR}/src/util/Undistorter.cpp
   ${PROJECT_SOURCE_DIR}/src/util/FrameReader.cpp
+  ${PROJECT_SOURCE_DIR}/src/util/PoseWriter.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Sim3Tracker.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Relocalizer.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/SE3Tracker.cpp

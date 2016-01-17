@@ -17,7 +17,7 @@ if __name__=="__main__":
 	inp = h5py.File(args.input, "r")
 	frames = inp["frames"]
 	frame_count = frames.shape[0]
-	for idx in range(54,frame_count):
+	for idx in range(0,frame_count):
 		print idx
 		img = frames[idx,::]
 		cv2.imshow('image',img)

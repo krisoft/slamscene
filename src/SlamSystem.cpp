@@ -27,6 +27,7 @@
 #include "Tracking/TrackingReference.h"
 #include "LiveSLAMWrapper.h"
 #include "util/globalFuncs.h"
+#include "util/TrackFrameDebug.h"
 #include "GlobalMapping/KeyFrameGraph.h"
 #include "GlobalMapping/TrackableKeyFrameSearch.h"
 #include "GlobalMapping/g2oTypeSim3Sophus.h"
@@ -887,7 +888,7 @@ void SlamSystem::randomInit(uchar* image, double timeStamp, int id)
 
 }
 
-void SlamSystem::trackFrame(uchar* image, unsigned int frameID, bool blockUntilMapped, double timestamp)
+void SlamSystem::trackFrame(uchar* image, unsigned int frameID, bool blockUntilMapped, double timestamp, TrackFrameDebug* trackFrameDebug)
 {
 	// Create new frame
 	std::shared_ptr<Frame> trackingNewFrame(new Frame(frameID, width, height, K, timestamp, image));
@@ -929,10 +930,22 @@ void SlamSystem::trackFrame(uchar* image, unsigned int frameID, bool blockUntilM
 	struct timeval tv_start, tv_end;
 	gettimeofday(&tv_start, NULL);
 
+	if( trackFrameDebug ){
+		trackFrameDebug->write(
+			trackingReference,
+			trackingNewFrame.get(),
+			frameToReference_initialEstimate
+		);
+	}
+
 	SE3 newRefToFrame_poseUpdate = tracker->trackFrame(
 			trackingReference,
 			trackingNewFrame.get(),
 			frameToReference_initialEstimate);
+
+	if( trackFrameDebug ){
+		trackFrameDebug->writeResult( newRefToFrame_poseUpdate );
+	}
 
 
 	gettimeofday(&tv_end, NULL);

@@ -30,6 +30,7 @@ set(lsd_SOURCE_FILES
   ${PROJECT_SOURCE_DIR}/src/util/Undistorter.cpp
   ${PROJECT_SOURCE_DIR}/src/util/FrameReader.cpp
   ${PROJECT_SOURCE_DIR}/src/util/PoseWriter.cpp
+  ${PROJECT_SOURCE_DIR}/src/util/TrackFrameDebug.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Sim3Tracker.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/Relocalizer.cpp
   ${PROJECT_SOURCE_DIR}/src/Tracking/SE3Tracker.cpp

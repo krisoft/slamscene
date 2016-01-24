@@ -28,6 +28,7 @@
 #include "util/settings.h"
 #include "util/globalFuncs.h"
 #include "SlamSystem.h"
+#include "DataStructures/Frame.h"
 
 #include <sstream>
 #include <fstream>
@@ -37,6 +38,7 @@
 #include "util/Undistorter.h"
 #include "util/FrameReader.h"
 #include "util/PoseWriter.h"
+#include "util/TrackFrameDebug.h"
 
 #include "opencv2/opencv.hpp"
 
@@ -44,6 +46,7 @@
 
 DEFINE_string(input, "", "HDF5 file containing the frames to process.");
 DEFINE_string(output, "", "HDF5 output file path.");
+DEFINE_string(debug, "", "debug dir path.");
 
 using namespace lsd_slam;
 int main( int argc, char** argv )
@@ -59,24 +62,6 @@ int main( int argc, char** argv )
 
 	FrameReader frame_reader( file );
 	PoseWriter pose_writer( file );
-	
-
-	/*hsize_t      size[2];
-	size[0]   = 4;
-	size[1]   = 10;
-	dataset.extend( size );
-
-	return 0;*/
-
-	/*cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
-
-	for(unsigned int i=0;i<frame_reader.getCount();i++)
-	{
-		std::cout << i << std::endl;
-		cv::Mat image = frame_reader.getFrame( i );
-		cv::imshow( "Display window", image );
-		cv::waitKey(0);                        
-	}*/
 
 	std::shared_ptr<Undistorter> undistorter = frame_reader.getUndistorter();
 
@@ -120,24 +105,33 @@ int main( int argc, char** argv )
 		{
 			system->randomInit(image.data, fakeTimeStamp, runningIDX);
 		} else {
+			std::stringstream ss;
+			ss << std::setw(5) << std::setfill('0') << i;
+			H5::H5File file(
+				FLAGS_debug + "/"+ ss.str() +".hdf5",
+				H5F_ACC_TRUNC
+			);
+
+			TrackFrameDebug trackFrameDebug( file );
 			system->trackFrame(
 				image.data,
 				runningIDX,
 				true, // block until mapped
-				fakeTimeStamp
+				fakeTimeStamp,
+				&trackFrameDebug
 			);
 		}
 		runningIDX++;
 		fakeTimeStamp+=0.03;
 
+		Frame* keyFrame = system->getCurrentKeyframe();
+
+		std::cout << i << " vs. " << keyFrame->id() << std::endl;
+
 		SE3 pose = system->getCurrentPoseEstimate();
 		pose_writer.writePose( i, pose );
-		std::cout << "pose:" << std::endl << pose.matrix() << std::endl;
 
 	}
-
-
-	//system->finalize();
 
 
 
